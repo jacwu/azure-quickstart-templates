@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.26.54.24096",
-      "templateHash": "8629186205194254058"
+      "version": "0.32.4.45862",
+      "templateHash": "12672660316685287149"
     }
   },
   "parameters": {
@@ -68,6 +68,7 @@
     "secretsPermissions": {
       "type": "array",
       "defaultValue": [
+        "get",
         "list"
       ],
       "metadata": {
@@ -110,7 +111,6 @@
         "enabledForTemplateDeployment": "false",
         "tenantId": "[parameters('tenantId')]",
         "enableSoftDelete": true,
-        "publicNetworkAccess": "Enabled",
         "enableRbacAuthorization": true,
         "softDeleteRetentionInDays": 90,
         "sku": {
@@ -118,10 +118,10 @@
           "family": "A"
         },
         "networkAcls": {
+          "defaultAction": "Allow",
           "bypass": "None",
-            "defaultAction": "Allow",
-            "ipRules": [],
-            "virtualNetworkRules": []
+          "ipRules": [],
+          "virtualNetworkRules": []
         }
       }
     },
@@ -131,6 +131,20 @@
       "name": "[format('{0}/{1}', parameters('keyVaultName'), parameters('secretName'))]",
       "properties": {
         "value": "[parameters('secretValue')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.KeyVault/vaults/{0}', parameters('keyVaultName'))]",
+      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName')), parameters('objectId'), '4633458b-17de-408a-b874-0445c86b69e6')]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
+        "principalId": "[parameters('objectId')]",
+        "principalType": "ServicePrincipal"
       },
       "dependsOn": [
         "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
@@ -153,6 +167,10 @@
     "resourceId": {
       "type": "string",
       "value": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+    },
+    "secretIdentifier": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', parameters('keyVaultName'), parameters('secretName')), '2024-04-01-preview').secretUri]"
     }
   }
 }

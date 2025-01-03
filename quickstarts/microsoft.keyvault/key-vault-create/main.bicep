@@ -26,6 +26,7 @@ param keysPermissions array = [
 
 @description('Specifies the permissions to secrets in the vault. Valid values are: all, get, list, set, delete, backup, restore, recover, and purge.')
 param secretsPermissions array = [
+  'get'
   'list'
 ]
 
@@ -43,38 +44,31 @@ param secretName string
 @secure()
 param secretValue string
 
-resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
+resource kv 'Microsoft.KeyVault/vaults@2024-04-01-preview' = {
   name: keyVaultName
   location: location
   properties: {
-    enabledForDeployment: enabledForDeployment
-    enabledForDiskEncryption: enabledForDiskEncryption
-    enabledForTemplateDeployment: enabledForTemplateDeployment
+    enabledForDeployment: 'false'
+    enabledForDiskEncryption: 'false'
+    enabledForTemplateDeployment: 'false'
     tenantId: tenantId
     enableSoftDelete: true
+    enableRbacAuthorization: true
     softDeleteRetentionInDays: 90
-    accessPolicies: [
-      {
-        objectId: objectId
-        tenantId: tenantId
-        permissions: {
-          keys: keysPermissions
-          secrets: secretsPermissions
-        }
-      }
-    ]
     sku: {
       name: skuName
       family: 'A'
     }
     networkAcls: {
       defaultAction: 'Allow'
-      bypass: 'AzureServices'
+      bypass: 'None'
+      ipRules: []
+      virtualNetworkRules: []
     }
   }
 }
 
-resource secret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+resource secret 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = {
   parent: kv
   name: secretName
   properties: {
@@ -82,7 +76,20 @@ resource secret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   }
 }
 
+// 添加角色分配
+resource kvRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(kv.id, objectId, '4633458b-17de-408a-b874-0445c86b69e6')
+  scope: kv
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
+    principalId: objectId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 output location string = location
 output name string = kv.name
 output resourceGroupName string = resourceGroup().name
 output resourceId string = kv.id
+output secretIdentifier string = secret.properties.secretUri  // 添加 secret 的资源 ID 输出
+
